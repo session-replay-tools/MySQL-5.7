@@ -45,6 +45,7 @@ struct site_def {
 	xcom_proto x_proto;
 	synode_no delivered_msg[NSERVERS];
 	double install_time;
+        double max_conn_rtt;
 };
 typedef struct site_def site_def;
 

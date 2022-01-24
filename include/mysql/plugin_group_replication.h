@@ -57,12 +57,18 @@ typedef struct st_group_replication_connection_status_callbacks
 */
 typedef struct st_group_replication_group_members_callbacks
 {
-  void* const context;
-  void (*set_channel_name)(void* const context, const char& value, size_t length);
-  void (*set_member_id)(void* const context, const char& value, size_t length);
-  void (*set_member_host)(void* const context, const char& value, size_t length);
-  void (*set_member_port)(void* const context, unsigned int value);
-  void (*set_member_state)(void* const context, const char& value, size_t length);
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_id)(void *const context, const char &value, size_t length);
+  void (*set_member_host)(void *const context, const char &value,
+                          size_t length);
+  void (*set_member_port)(void *const context, unsigned int value);
+  void (*set_member_state)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_role)(void *const context, const char *value,
+                          size_t length);
+
 } GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
 
 /*

@@ -135,6 +135,7 @@ double server_active(site_def const *s, node_no i);
 void update_servers(site_def *s, cargo_type operation);
 void garbage_collect_servers();
 int	client_task(task_arg arg);
+bool_t check_tcp_connection_valid(int fd, int *same_ip);
 int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p);
 /**
   Updates timestamp of server.

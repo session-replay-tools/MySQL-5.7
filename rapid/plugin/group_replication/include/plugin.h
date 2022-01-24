@@ -111,6 +111,7 @@ void register_server_reset_master();
 bool get_allow_local_lower_version_join();
 bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
+ulong get_request_time_threshold();
 bool is_plugin_waiting_to_set_server_read_mode();
 
 //Plugin public methods

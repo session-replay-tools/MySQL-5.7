@@ -31,49 +31,39 @@ int group_replication_reset_master_logs(Binlog_transmit_param *param)
 }
 
 int group_replication_transmit_start(Binlog_transmit_param *param,
-                                     const char *log_file, my_off_t log_pos)
-{
+                                     const char *log_file, my_off_t log_pos) {
   return 0;
 }
 
-int group_replication_transmit_stop(Binlog_transmit_param *param)
-{
-  return 0;
-}
+int group_replication_transmit_stop(Binlog_transmit_param *param) { return 0; }
 
 int group_replication_reserve_header(Binlog_transmit_param *param,
-                                     unsigned char *header,
-                                     unsigned long size,
-                                     unsigned long *len)
-{
+                                     unsigned char *header, unsigned long size,
+                                     unsigned long *len) {
   return 0;
 }
 
 int group_replication_before_send_event(Binlog_transmit_param *param,
                                         unsigned char *packet,
-                                        unsigned long len,
-                                        const char *log_file,
-                                        my_off_t log_pos)
-{
+                                        unsigned long len, const char *log_file,
+                                        my_off_t log_pos) {
   return 0;
 }
 
 int group_replication_after_send_event(Binlog_transmit_param *param,
-                                       const char *event_buf,
-                                       unsigned long len,
+                                       const char *event_buf, unsigned long len,
                                        const char *skipped_log_file,
-                                       my_off_t skipped_log_pos)
-{
+                                       my_off_t skipped_log_pos) {
   return 0;
 }
 
 Binlog_transmit_observer binlog_transmit_observer = {
-  sizeof(Binlog_transmit_observer),
+    sizeof(Binlog_transmit_observer),
 
-  group_replication_transmit_start,     // transmit_start,
-  group_replication_transmit_stop,      // transmit_stop,
-  group_replication_reserve_header,     // reserve_header,
-  group_replication_before_send_event,  // before_send_event,
-  group_replication_after_send_event,   // after_send_event,
-  group_replication_reset_master_logs   // reset_master
+    group_replication_transmit_start,    // transmit_start,
+    group_replication_transmit_stop,     // transmit_stop,
+    group_replication_reserve_header,    // reserve_header,
+    group_replication_before_send_event, // before_send_event,
+    group_replication_after_send_event,  // after_send_event,
+    group_replication_reset_master_logs  // reset_master
 };

@@ -33,9 +33,12 @@ typedef double	detector_state[NSERVERS];
 struct site_def;
 
 void note_detected(struct site_def const *site, node_no node);
-int	may_be_dead(detector_state const ds, node_no i, double seconds);
+int may_be_dead(detector_state const ds, node_no i, double seconds,
+                int unreachable);
 void init_detector(detector_state ds);
+int is_server_connected(struct site_def const *site, node_no node);
 void invalidate_detector_sites(struct site_def *site);
+void update_detected(struct site_def *site, double conn_rtt);
 
 #ifdef __cplusplus
 }

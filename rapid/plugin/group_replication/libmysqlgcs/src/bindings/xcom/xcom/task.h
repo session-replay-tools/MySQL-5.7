@@ -598,7 +598,7 @@ extern task_env *wait_io(task_env *t, int fd, int op);
 extern result	con_read(connection_descriptor const *rfd, void *buf, int n);
 extern result	con_write(connection_descriptor const *wfd, void *buf, int n);
 extern result set_nodelay(int fd);
-
+extern bool_t retrieve_addr_from_fd(int fd, bool_t client, char *ip, int *port);
 
 /* Use SSL ? */
 void xcom_enable_ssl();

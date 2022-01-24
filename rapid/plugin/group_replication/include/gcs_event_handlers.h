@@ -85,8 +85,10 @@ public:
   void on_view_changed(const Gcs_view &new_view,
                        const Exchanged_data &exchanged_data) const;
   Gcs_message_data* get_exchangeable_data() const;
-  void on_suspicions(const std::vector<Gcs_member_identifier>& members,
-                     const std::vector<Gcs_member_identifier>& unreachable) const;
+  void
+  on_suspicions(const std::vector<Gcs_member_identifier> &members,
+                const std::vector<Gcs_member_identifier *> &left_members,
+                const std::vector<Gcs_member_identifier> &unreachable) const;
 
   /**
     Sets the component stop timeout.

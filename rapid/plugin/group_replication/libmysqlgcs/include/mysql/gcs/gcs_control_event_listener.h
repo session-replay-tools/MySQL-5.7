@@ -90,8 +90,9 @@ public:
                            of @c members.
    */
   virtual void on_suspicions(
-          const std::vector<Gcs_member_identifier>& members,
-          const std::vector<Gcs_member_identifier>& unreachable) const= 0;
+      const std::vector<Gcs_member_identifier> &members,
+      const std::vector<Gcs_member_identifier *> &left_members,
+      const std::vector<Gcs_member_identifier> &unreachable) const = 0;
 
   virtual ~Gcs_control_event_listener() {}
 };

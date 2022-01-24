@@ -51,28 +51,20 @@ applier_stop(Binlog_relay_IO_param *param, bool aborted)
   return 0;
 }
 
-int Applier_channel_state_observer::
-before_request_transmit(Binlog_relay_IO_param *param,
-                        uint32 flags)
-{
+int Applier_channel_state_observer::before_request_transmit(
+    Binlog_relay_IO_param *param, uint32 flags) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-after_read_event(Binlog_relay_IO_param *param,
-                 const char *packet, unsigned long len,
-                 const char **event_buf,
-                 unsigned long *event_len)
-{
+int Applier_channel_state_observer::after_read_event(
+    Binlog_relay_IO_param *param, const char *packet, unsigned long len,
+    const char **event_buf, unsigned long *event_len) {
   return 0;
 }
 
-int Applier_channel_state_observer::
-after_queue_event(Binlog_relay_IO_param *param,
-                  const char *event_buf,
-                  unsigned long event_len,
-                  uint32 flags)
-{
+int Applier_channel_state_observer::after_queue_event(
+    Binlog_relay_IO_param *param, const char *event_buf,
+    unsigned long event_len, uint32 flags) {
   return 0;
 }
 

@@ -39,7 +39,7 @@ involved. However, for the time being, proposing a no_op for an instance
 will not mark it as busy. This may change in the future, so a safe upper
 limit on the number of nodes marked as busy is event_horizon * NSERVERS.
 */
-#define CACHED 50000
+#define CACHED 250000
 
 #define is_cached(x) (hash_get(x) != NULL)
 

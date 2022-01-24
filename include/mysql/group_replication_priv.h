@@ -135,7 +135,6 @@ void get_server_startup_prerequirements(Trans_context_info& requirements,
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length);
 
-#if !defined(NDEBUG)
 /**
   Returns a text representation of a encoded GTID set.
 
@@ -147,7 +146,6 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   @return a pointer to text representation of the encoded set
 */
 char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
-#endif
 
 
 /**
