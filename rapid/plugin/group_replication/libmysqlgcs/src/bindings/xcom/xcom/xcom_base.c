@@ -1772,7 +1772,7 @@ retry_new:
         break;
       {
         double now = task_now();
-        if ((ep->start_push + 3600.0) <= now) {
+        if ((ep->start_push + 3.0) <= now) {
           PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
           DBGOUT(FN; STRLIT("retry pushing "); SYCEXP(ep->msgno));
           MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_app_data(ep->prepare_msg->a)););
