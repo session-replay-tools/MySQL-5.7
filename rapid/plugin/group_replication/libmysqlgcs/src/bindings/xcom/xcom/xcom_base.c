@@ -3279,7 +3279,7 @@ static void	handle_client_msg(pax_msg *p)
 }
 
 #define PING_GATHERING_TIME_WINDOW 5.0
-#define PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN 3
+#define PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN 5
 int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
                               int has_client_already_booted,
                               double current_time) {
