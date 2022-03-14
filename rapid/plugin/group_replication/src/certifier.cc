@@ -46,9 +46,6 @@ static void *launch_broadcast_thread(void* arg)
 
 Certifier_broadcast_thread::Certifier_broadcast_thread()
     : aborted(false), broadcast_thd_running(false), gc_counter(0) {
-  DBUG_EXECUTE_IF("group_replication_certifier_broadcast_thread_big_period",
-                  { broadcast_gtid_executed_period = 600; });
-
   mysql_mutex_init(key_GR_LOCK_cert_broadcast_run, &broadcast_run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_cert_broadcast_run, &broadcast_run_cond);

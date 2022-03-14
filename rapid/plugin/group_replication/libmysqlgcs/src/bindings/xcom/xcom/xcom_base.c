@@ -1841,7 +1841,7 @@ static node_no	leader(site_def const *s)
 {
   node_no leader = 0;
   for (leader = 0; leader < get_maxnodes(s); leader++) {
-    if (!may_be_dead(s->detected, leader, task_now(),
+    if (!may_be_dead(s->detected, leader, task_now(), DETECTOR_LIVE_TIMEOUT,
                      s->servers[leader]->unreachable))
       return leader;
   }
@@ -1953,6 +1953,7 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
         site->global_node_set.node_set_val &&
         !site->global_node_set.node_set_val[msgno.node] &&
         may_be_dead(site->detected, msgno.node, task_now(),
+                    DETECTOR_LIVE_TIMEOUT,
                     site->servers[msgno.node]->unreachable)) {
       propose_missing_values(n);
     } else {

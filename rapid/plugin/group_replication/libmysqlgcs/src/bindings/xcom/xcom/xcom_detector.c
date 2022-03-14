@@ -48,23 +48,28 @@ extern int xcom_shutdown;
 /* static double	detected[NSERVERS]; */
 
 /* See if node has been suspiciously still for some time */
-int may_be_dead(detector_state const ds, node_no i, double seconds,
+int may_be_dead(detector_state const ds, node_no i, double seconds, int silent,
                 int unreachable) {
   if (unreachable) {
     return 1;
   } else {
-    return ds[i] < seconds - 5.0;
+    return ds[i] < seconds - silent;
   }
 }
 
 static int detect_node_timeout(site_def const *site, node_no node) {
   int alive = 1;
-  ulong timeout = 5.0;
+  ulong timeout = DETECTOR_LIVE_TIMEOUT;
   double current = task_now();
   if (site->servers[node]->unreachable >= MAX_CONNECT_FAIL_TIMES) {
     timeout = 1;
   } else if (site->servers[node]->unreachable == DIRECT_ABORT_CONN) {
     alive = 0;
+  } else {
+    double diff = current - site->servers[node]->large_transfer_detected;
+    if (diff < timeout) {
+      timeout = timeout << 2;
+    }
   }
   if (alive) {
     return (node == get_nodeno(site)) ||
@@ -178,7 +183,13 @@ int	enough_live_nodes(site_def const *site)
   if (maxnodes == 0)
     return 0;
   for (i = 0; i < maxnodes; i++) {
-    if (i == self || t - site->detected[i] < DETECTOR_LIVE_TIMEOUT) {
+    ulong timeout = DETECTOR_LIVE_TIMEOUT;
+    double diff = task_now() - site->servers[i]->large_transfer_detected;
+    if (diff < timeout) {
+      timeout = timeout << 2;
+    }
+
+    if (i == self || t - site->detected[i] < timeout) {
       n++;
     }
   }
@@ -240,7 +251,7 @@ static node_no	leader(site_def const *s)
 {
   node_no leader = 0;
   for (leader = 0; leader < get_maxnodes(s); leader++) {
-    if (!may_be_dead(s->detected, leader, task_now(),
+    if (!may_be_dead(s->detected, leader, task_now(), DETECTOR_LIVE_TIMEOUT,
                      s->servers[leader]->unreachable) &&
         is_set(s->global_node_set, leader))
       return leader;
@@ -374,10 +385,12 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
   DECL_ENV
   pax_msg *i_p;
   pax_msg *you_p;
+  int silent;
   END_ENV;
   TASK_BEGIN
 
   ep->i_p = ep->you_p = NULL;
+  ep->silent = DETECTOR_LIVE_TIMEOUT;
 
   while (!xcom_shutdown) {
     double sec = task_now();
@@ -395,8 +408,13 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
       {
         node_no i;
         for (i = 0; i < get_maxnodes(site); i++) {
+          double diff = task_now() - site->servers[i]->large_transfer_detected;
+          if (diff < DETECTOR_LIVE_TIMEOUT) {
+            ep->silent = ep->silent << 2;
+          }
+
           if (i != get_nodeno(site) &&
-              may_be_dead(site->detected, i, sec,
+              may_be_dead(site->detected, i, sec, ep->silent,
                           site->servers[i]->unreachable)) {
             replace_pax_msg(&ep->you_p, pax_msg_new(alive_synode, site));
             ep->you_p->op = are_you_alive_op;

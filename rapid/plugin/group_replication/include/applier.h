@@ -223,7 +223,7 @@ public:
     @retval !=0    yes
    */
   bool is_applier_thread_aborted() {
-    return (applier_aborted || applier_thd->killed);
+    return (applier_aborted || applier_thd == NULL || applier_thd->killed);
   }
 
   /**

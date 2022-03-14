@@ -218,6 +218,7 @@ static int	_send_msg(server *s, pax_msg *p, node_no to, int64_t *ret)
           /* Still not enough? Message must be huge, send without buffering */
           if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
             DBGOUT(FN; STRLIT("task_write"));
+            s->large_transfer_detected = task_now();
             TASK_CALL(task_write(&s->con, ep->buf, ep->buflen, &sent));
             if (s->con.fd < 0) {
               TASK_FAIL;
@@ -685,6 +686,7 @@ static server *mksrv(char *srv, xcom_port port) {
   reset_connection(&s->con);
   s->active = 0.0;
   s->detected = 0.0;
+  s->large_transfer_detected = 0.0;
   s->unreachable = 0;
   s->last_ping_received = 0.0;
   s->number_of_pings_received = 0;
@@ -1150,7 +1152,8 @@ int	send_to_someone(site_def const *s, pax_msg *p, const char *dbg MY_ATTRIBUTE(
   while (i != prev) {
     /* DBGOUT(FN; NDBG(i,u); NDBG(prev,u)); */
     if (i != s->nodeno &&
-        !may_be_dead(s->detected, i, task_now(), s->servers[i]->unreachable)) {
+        !may_be_dead(s->detected, i, task_now(), DETECTOR_LIVE_TIMEOUT,
+                     s->servers[i]->unreachable)) {
       MAY_DBG(FN; STRLIT(dbg); NDBG(i, u); NDBG(max, u); PTREXP(p));
       retval = _send_server_msg(s, i, p);
       break;

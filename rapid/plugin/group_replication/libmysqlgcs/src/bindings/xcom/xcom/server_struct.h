@@ -56,6 +56,7 @@ struct server {
   int unreachable;
   int number_of_pings_received; /* Number of pings received from this server */
   double last_ping_received;    /* Last received ping timestamp */
+  double large_transfer_detected; /* Process large transfer */
 };
 
 typedef struct server server;

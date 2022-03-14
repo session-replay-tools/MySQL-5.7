@@ -353,8 +353,8 @@ int Applier_module::applier_thread_handle() {
   Format_description_log_event *fde_evt = NULL;
   Continuation *cont = NULL;
   Packet *packet = NULL;
-  bool loop_termination = false;
-  int packet_application_error = 0;
+  bool loop_termination = false, remaining_packets_inited = false;
+  int packet_application_error = 0, remaining_packets_to_be_processed = 0;
 
   IO_CACHE *cache = (IO_CACHE *)my_malloc(PSI_NOT_INSTRUMENTED,
                                           sizeof(IO_CACHE), MYF(MY_ZEROFILL));
@@ -406,6 +406,18 @@ int Applier_module::applier_thread_handle() {
 
   // applier main loop
   while (!applier_error && !packet_application_error && !loop_termination) {
+    if (is_applier_thread_aborted()) {
+      if (remaining_packets_inited) {
+        remaining_packets_to_be_processed--;
+      } else {
+        remaining_packets_to_be_processed = this->incoming->size();
+      }
+      if (remaining_packets_to_be_processed == 0) {
+        my_sleep(1000);
+        break;
+      }
+    }
+
     this->incoming->front(&packet); // blocking
 
     switch (packet->get_packet_type()) {
@@ -453,8 +465,9 @@ end:
   channel_observation_manager->unregister_channel_observer(
       applier_channel_observer);
 
-  // only try to leave if the applier managed to start
-  if (applier_error && applier_running)
+  // only try to leave if the applier managed to start or if the applier_thd was
+  // killed by the DBA.
+  if ((applier_error && applier_running) || applier_thd->killed)
     leave_group_on_failure();
 
   // Even on error cases, send a stop signal to all handlers that could be
