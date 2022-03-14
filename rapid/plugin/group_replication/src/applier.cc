@@ -465,9 +465,8 @@ end:
   channel_observation_manager->unregister_channel_observer(
       applier_channel_observer);
 
-  // only try to leave if the applier managed to start or if the applier_thd was
-  // killed by the DBA.
-  if ((applier_error && applier_running) || applier_thd->killed)
+  // only try to leave if the applier managed to start
+  if (applier_error && applier_running)
     leave_group_on_failure();
 
   // Even on error cases, send a stop signal to all handlers that could be
