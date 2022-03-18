@@ -344,6 +344,8 @@ int const threephase = 0;
 /* Error injection for testing */
 #define INJECT_ERROR 0
 
+#define LARGE_TRAN_THRESHOLD_FOR_RETRY 16777216
+
 /* Crash a node early */
 /* #define CRASH 1 */
 
@@ -377,7 +379,7 @@ unsigned long	msg_count(app_data_ptr a);
 void	get_host_name(char *a, char *name);
 
 static double wakeup_delay_for_perf(double old);
-static double wakeup_delay(const site_def *site, double old);
+static double wakeup_delay(site_def *site, double old);
 
 /* Task types */
 static int	proposer_task(task_arg arg);
@@ -677,8 +679,7 @@ void set_last_received_config(synode_no received_config_change)
 }
 
 /* {{{ Definition of majority */
-static inline node_no max_check(site_def const *site)
-{
+static inline node_no max_check(site_def *site) {
 #ifdef MAXACCEPT
   return MIN(get_maxnodes(site), MAXACCEPT);
 #else
@@ -689,8 +690,8 @@ static inline node_no max_check(site_def const *site)
 static site_def * forced_config = 0;
 
 /* Definition of majority */
-static inline int	majority(bit_set const *nodeset, site_def const *s, int all, int delay MY_ATTRIBUTE((unused)), int force)
-{
+static inline int majority(bit_set const *nodeset, site_def *s, int all,
+                           int delay MY_ATTRIBUTE((unused)), int force) {
   node_no ok = 0;
   node_no i = 0;
   int retval = 0;
@@ -729,12 +730,10 @@ static inline int	majority(bit_set const *nodeset, site_def const *s, int all, i
   }
 }
 
-
 #define IS_CONS_ALL(p) ((p)->proposer.msg->a ? (p)->proposer.msg->a->consensus == cons_all : 0)
 
 /* See if a majority of acceptors have answered our prepare */
-static int	prep_majority(site_def const * site, pax_machine *p)
-{
+static int prep_majority(site_def *site, pax_machine *p) {
 
   int ok = 0;
 
@@ -749,8 +748,7 @@ static int	prep_majority(site_def const * site, pax_machine *p)
 }
 
 /* See if a majority of acceptors have answered our propose */
-static int	prop_majority(site_def const * site, pax_machine *p)
-{
+static int prop_majority(site_def *site, pax_machine *p) {
   int ok = 0;
 
   assert(p);
@@ -782,13 +780,13 @@ gpointer xcom_thread_main(gpointer cp)
   return NULL;
 }
 /* purecov: end */
-static site_def const * executor_site = 0;
+static site_def *executor_site = 0;
 
-site_def const *get_executor_site() { return executor_site; }
+site_def *get_executor_site() { return executor_site; }
 
 static site_def *proposer_site = 0;
 
-site_def const *get_proposer_site() { return proposer_site; }
+site_def *get_proposer_site() { return proposer_site; }
 
 void	init_xcom_base()
 {
@@ -1127,14 +1125,12 @@ static pax_msg *create_noop(pax_msg *p)
 
 
 /* Initialize a read_msg */
-static pax_msg *create_read(site_def const * site, pax_msg *p)
-{
+static pax_msg *create_read(site_def *site, pax_msg *p) {
   p->msg_type = normal;
   p->proposal.node = get_nodeno(site);
   prepare(p, read_op);
   return p;
 }
-
 
 static int	skip_msg(pax_msg *p)
 {
@@ -1192,8 +1188,7 @@ static void	set_learn_type(pax_msg *p)
 }
 
 /* purecov: begin deadcode */
-static int	learn_msg(site_def const * site, pax_msg *p)
-{
+static int learn_msg(site_def *site, pax_msg *p) {
   set_learn_type(p);
   p->reply_to = p->proposal;
   brand_app_data(p);
@@ -1201,8 +1196,7 @@ static int	learn_msg(site_def const * site, pax_msg *p)
   return send_to_all_site(site, p, "learn_msg");
 }
 /* purecov: end */
-static int	tiny_learn_msg(site_def const *site, pax_msg *p)
-{
+static int tiny_learn_msg(site_def *site, pax_msg *p) {
   int retval;
   pax_msg *tmp = clone_pax_msg_no_app(p);
   pax_machine *pm = get_cache(p->synode);
@@ -1218,13 +1212,12 @@ static int	tiny_learn_msg(site_def const *site, pax_msg *p)
   return retval;
 }
 
-
 /* }}} */
 
 /* {{{ Proposer task */
 
-static void	prepare_push_3p(site_def const * site, pax_machine *p, pax_msg *msg, synode_no msgno)
-{
+static void prepare_push_3p(site_def *site, pax_machine *p, pax_msg *msg,
+                            synode_no msgno) {
   MAY_DBG(FN; SYCEXP(msgno); NDBG(p->proposer.bal.cnt, d);
           NDBG(p->acceptor.promise.cnt, d));
   p->proposer.bal.node = get_nodeno(site);
@@ -1236,9 +1229,7 @@ static void	prepare_push_3p(site_def const * site, pax_machine *p, pax_msg *msg,
   msg->proposal = p->proposer.bal;
 }
 
-
-static void	push_msg_2p(site_def const * site, pax_machine *p)
-{
+static void push_msg_2p(site_def *site, pax_machine *p) {
   assert(p->proposer.msg);
 
   BIT_ZERO(p->proposer.prop_nodeset);
@@ -1251,9 +1242,8 @@ static void	push_msg_2p(site_def const * site, pax_machine *p)
   propose_msg(p->proposer.msg);
 }
 
-
-static void	push_msg_3p(site_def const * site, pax_machine *p, pax_msg *msg, synode_no msgno, pax_msg_type msg_type)
-{
+static void push_msg_3p(site_def *site, pax_machine *p, pax_msg *msg,
+                        synode_no msgno, pax_msg_type msg_type) {
   assert(msgno.msgno != 0);
   prepare_push_3p(site, p, msg, msgno);
   msg->msg_type = msg_type;
@@ -1265,7 +1255,6 @@ static void	push_msg_3p(site_def const * site, pax_machine *p, pax_msg *msg, syn
           STRLIT(pax_op_to_str(msg->op)));
 }
 
-
 /* Brand client message with unique ID */
 static void	brand_client_msg(pax_msg *msg, synode_no msgno)
 {
@@ -1274,8 +1263,7 @@ static void	brand_client_msg(pax_msg *msg, synode_no msgno)
 }
 
 /* purecov: begin deadcode */
-static int	reject_send(site_def const * site, recover_action r)
-{
+static int reject_send(site_def *site, recover_action r) {
   return r != rec_send && xcom_booted() && (!site || !enough_live_nodes(site));
 }
 /* purecov: end */
@@ -1472,8 +1460,7 @@ void	set_max_synode(synode_no synode)
 }
 
 /* purecov: begin deadcode */
-static void	learn_accepted_value(site_def const * site, pax_msg *p, synode_no synode)
-{
+static void learn_accepted_value(site_def *site, pax_msg *p, synode_no synode) {
   pax_msg *msg = pax_msg_new(synode, site);
   ref_msg(msg);
   copy_app_data(&msg->a, p->a);
@@ -1523,8 +1510,7 @@ bool_t match_my_msg(pax_msg *learned, pax_msg *mine)
 
 
 #if TASK_DBUG_ON
-static void	dbg_reply_set(site_def const * site, const char *s, bit_set *bs)
-{
+static void dbg_reply_set(site_def *site, const char *s, bit_set *bs) {
   unsigned int i = 0;
   unsigned int n = get_maxnodes(site);
   GET_GOUT;
@@ -1572,7 +1558,7 @@ static int	proposer_task(task_arg arg)
   double start_propose;
   double start_push;
   double delay;
-  site_def const *site;
+  site_def *site;
   size_t size;
   END_ENV;
 
@@ -1648,160 +1634,163 @@ static int	proposer_task(task_arg arg)
       if (!ep->site) /* Use current site if message is too old */
         ep->site = get_site_def();
 
-        /* See if we can do anything with this message */
-#if 0
-						if (!ep->site || get_nodeno(ep->site) == VOID_NODE_NO) {
-								/* Give up */
-								deliver_to_app(NULL, ep->client_msg->p->a, delivery_failure);
-								GOTO(next);
-						}
-#endif
-retry_old:
-  ep->p = get_cache(ep->msgno);
-  assert(ep->p);
-  lock = lock_pax_machine(ep->p);
-  assert(!lock);
+    retry_old:
+      ep->p = get_cache(ep->msgno);
+      assert(ep->p);
+      lock = lock_pax_machine(ep->p);
+      assert(!lock);
 
-  /* Try to get a value accepted */
-  learn_accepted_value(ep->site, ep->client_msg->p, ep->msgno);
-  while (!finished(ep->p)) {
-    /* Sleep here if value is not already chosen */
-    TIMED_TASK_WAIT(&ep->p->rv, ep->delay = wakeup_delay(ep->site, ep->delay));
-    if (!synode_eq(ep->msgno, ep->p->synode)) {
-      DBGOUT(FN; STRLIT("proposer_task detected stolen state machine, retry"););
-      /* unlock_pax_machine(ep->p); */
-      GOTO(retry_old);
-    }
-    assert(synode_eq(ep->msgno, ep->p->synode));
-    learn_accepted_value(ep->site, ep->client_msg->p, ep->msgno);
-  }
-  unlock_pax_machine(ep->p);
-  msg_link_delete(&ep->client_msg);
-  continue;
-}
-
-/* It is a new message */
-
-assert(!synode_eq(current_message, null_synode));
-
-retry_new:
-  /* Find a free slot */
-
-  assert(!synode_eq(current_message, null_synode));
-  ep->msgno = current_message;
-  while (is_busy(ep->msgno)) {
-    while (/* ! ep->client_msg->p->force_delivery &&  */ too_far(
-        incr_msgno(ep->msgno))) { /* Too far ahead of executor */
-      TIMED_TASK_WAIT(&exec_wait, 1.0);
-      DBGOUT(FN; TIMECEXP(ep->start_propose);
-             TIMECEXP(ep->client_msg->p->a->expiry_time); TIMECEXP(task_now());
-
-             NDBG(enough_live_nodes(ep->site), d));
-    }
-    ep->msgno = incr_msgno(ep->msgno);
-  }
-  assert(!synode_eq(ep->msgno, null_synode));
-  proposer_site = find_site_def_rw(ep->msgno);
-
-  ep->site = proposer_site;
-
-  /* See if we can do anything with this message */
-#if 1
-  if (!ep->site || get_nodeno(ep->site) == VOID_NODE_NO) {
-    /* Give up */
-    deliver_to_app(NULL, ep->client_msg->p->a, delivery_failure);
-    GOTO(next);
-  }
-#endif
-  DBGOHK(FN; STRLIT("changing current message"));
-  set_current_message(ep->msgno);
-
-  brand_client_msg(ep->client_msg->p, ep->msgno);
-  ep->client_msg->p->a->lsn = ep->msgno.msgno;
-
-  for (;;) { /* Loop until the client message has been learned */
-    /* Get a Paxos instance to send the client message */
-    ep->p = get_cache(ep->msgno);
-    assert(ep->p);
-    if (ep->client_msg->p->force_delivery)
-      ep->p->force_delivery = ep->client_msg->p->force_delivery;
-    lock = lock_pax_machine(ep->p);
-    assert(!lock);
-
-    /* Set the client message as current proposal */
-    assert(ep->client_msg->p);
-    replace_pax_msg(&ep->p->proposer.msg, clone_pax_msg(ep->client_msg->p));
-    if (ep->p->proposer.msg == NULL) {
-      g_critical("Node %u has run out of memory while sending a message and "
-                 "will now exit.",
-                 get_nodeno(proposer_site));
-      terminate_and_exit();
-      TERMINATE;
-    }
-    assert(ep->p->proposer.msg);
-    PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
-
-    /* Create the prepare message */
-    unchecked_replace_pax_msg(&ep->prepare_msg,
-                              pax_msg_new(ep->msgno, ep->site));
-    DBGOUT(FN; PTREXP(ep->client_msg->p->a); STRLIT("pushing ");
-           SYCEXP(ep->msgno));
-    MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_app_data(ep->prepare_msg->a)));
-
-    if (threephase || ep->p->force_delivery) {
-      push_msg_3p(ep->site, ep->p, ep->prepare_msg, ep->msgno, normal);
-    } else {
-      push_msg_2p(ep->site, ep->p);
-    }
-
-    ep->start_push = task_now();
-
-    while (!finished(ep->p)) { /* Try to get a value accepted */
-      /* We will wake up periodically, and whenever a message arrives */
-      TIMED_TASK_WAIT(&ep->p->rv,
-                      ep->delay = wakeup_delay(ep->site, ep->delay));
-      if (!synode_eq(ep->msgno, ep->p->synode) || ep->p->proposer.msg == NULL) {
-        DBGOHK(FN; STRLIT("detected stolen state machine, retry"););
-        /* unlock_pax_machine(ep->p); */
-        GOTO(retry_new); /* Need to break out of both loops,
-                                                and we have no "exit named loop"
-                            construction */
+      /* Try to get a value accepted */
+      learn_accepted_value(ep->site, ep->client_msg->p, ep->msgno);
+      while (!finished(ep->p)) {
+        /* Sleep here if value is not already chosen */
+        TIMED_TASK_WAIT(&ep->p->rv,
+                        ep->delay = wakeup_delay(ep->site, ep->delay));
+        if (!synode_eq(ep->msgno, ep->p->synode)) {
+          DBGOUT(FN;
+                 STRLIT("proposer_task detected stolen state machine, retry"););
+          /* unlock_pax_machine(ep->p); */
+          GOTO(retry_old);
+        }
+        assert(synode_eq(ep->msgno, ep->p->synode));
+        learn_accepted_value(ep->site, ep->client_msg->p, ep->msgno);
       }
-      assert(synode_eq(ep->msgno, ep->p->synode) && ep->p->proposer.msg);
-      if (finished(ep->p))
-        break;
-      {
-        double now = task_now();
-        if ((ep->start_push + 3.0) <= now) {
-          PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
-          DBGOUT(FN; STRLIT("retry pushing "); SYCEXP(ep->msgno));
-          MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_app_data(ep->prepare_msg->a)););
-          DBGOUT(BALCEXP(ep->p->proposer.bal);
-                 BALCEXP(ep->p->acceptor.promise));
-          MAY_DBG(FN; dbg_reply_set(ep->site, "prep_node_set",
-                                    ep->p->proposer.prep_nodeset);
-                  dbg_reply_set(ep->site, "prop_node_set",
-                                ep->p->proposer.prop_nodeset););
-          push_msg_3p(ep->site, ep->p, ep->prepare_msg, ep->msgno, normal);
-          ep->start_push = now;
+      unlock_pax_machine(ep->p);
+      msg_link_delete(&ep->client_msg);
+      continue;
+    }
+
+    /* It is a new message */
+
+    assert(!synode_eq(current_message, null_synode));
+
+  retry_new:
+    /* Find a free slot */
+
+    assert(!synode_eq(current_message, null_synode));
+    ep->msgno = current_message;
+    while (is_busy(ep->msgno)) {
+      while (/* ! ep->client_msg->p->force_delivery &&  */ too_far(
+          incr_msgno(ep->msgno))) { /* Too far ahead of executor */
+        TIMED_TASK_WAIT(&exec_wait, 1.0);
+        DBGOUT(FN; TIMECEXP(ep->start_propose);
+               TIMECEXP(ep->client_msg->p->a->expiry_time);
+               TIMECEXP(task_now());
+
+               NDBG(enough_live_nodes(ep->site), d));
+      }
+      ep->msgno = incr_msgno(ep->msgno);
+    }
+    assert(!synode_eq(ep->msgno, null_synode));
+    proposer_site = find_site_def_rw(ep->msgno);
+
+    ep->site = proposer_site;
+
+    /* See if we can do anything with this message */
+#if 1
+    if (!ep->site || get_nodeno(ep->site) == VOID_NODE_NO) {
+      /* Give up */
+      deliver_to_app(NULL, ep->client_msg->p->a, delivery_failure);
+      GOTO(next);
+    }
+#endif
+    DBGOHK(FN; STRLIT("changing current message"));
+    set_current_message(ep->msgno);
+
+    brand_client_msg(ep->client_msg->p, ep->msgno);
+    ep->client_msg->p->a->lsn = ep->msgno.msgno;
+
+    for (;;) { /* Loop until the client message has been learned */
+      /* Get a Paxos instance to send the client message */
+      ep->p = get_cache(ep->msgno);
+      assert(ep->p);
+      if (ep->client_msg->p->force_delivery)
+        ep->p->force_delivery = ep->client_msg->p->force_delivery;
+      lock = lock_pax_machine(ep->p);
+      assert(!lock);
+
+      /* Set the client message as current proposal */
+      assert(ep->client_msg->p);
+      replace_pax_msg(&ep->p->proposer.msg, clone_pax_msg(ep->client_msg->p));
+      if (ep->p->proposer.msg == NULL) {
+        g_critical("Node %u has run out of memory while sending a message and "
+                   "will now exit.",
+                   get_nodeno(proposer_site));
+        terminate_and_exit();
+        TERMINATE;
+      }
+      assert(ep->p->proposer.msg);
+      PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
+
+      /* Create the prepare message */
+      unchecked_replace_pax_msg(&ep->prepare_msg,
+                                pax_msg_new(ep->msgno, ep->site));
+      DBGOUT(FN; PTREXP(ep->client_msg->p->a); STRLIT("pushing ");
+             SYCEXP(ep->msgno));
+      MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_app_data(ep->prepare_msg->a)));
+
+      if (threephase || ep->p->force_delivery) {
+        push_msg_3p(ep->site, ep->p, ep->prepare_msg, ep->msgno, normal);
+      } else {
+        push_msg_2p(ep->site, ep->p);
+      }
+
+      ep->start_push = task_now();
+
+      while (!finished(ep->p)) { /* Try to get a value accepted */
+        /* We will wake up periodically, and whenever a message arrives */
+        TIMED_TASK_WAIT(&ep->p->rv,
+                        ep->delay = wakeup_delay(ep->site, ep->delay));
+        if (!synode_eq(ep->msgno, ep->p->synode) ||
+            ep->p->proposer.msg == NULL) {
+          DBGOHK(FN; STRLIT("detected stolen state machine, retry"););
+          /* unlock_pax_machine(ep->p); */
+          GOTO(retry_new); /* Need to break out of both loops,
+                              and we have no "exit named loop"
+                              construction */
+        }
+        assert(synode_eq(ep->msgno, ep->p->synode) && ep->p->proposer.msg);
+        if (finished(ep->p))
+          break;
+        {
+          double now = task_now();
+          double max_wait_time = 10.0;
+          if (ep->size > LARGE_TRAN_THRESHOLD_FOR_RETRY) {
+            max_wait_time = 30;
+          }
+
+          if ((ep->start_push + max_wait_time) <= now) {
+            PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
+            DBGOUT(FN; STRLIT("retry pushing "); SYCEXP(ep->msgno));
+            G_MESSAGE("retry pushing, timeout:%f, size:%lu", max_wait_time,
+                      ep->size);
+            MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_app_data(ep->prepare_msg->a)););
+            DBGOUT(BALCEXP(ep->p->proposer.bal);
+                   BALCEXP(ep->p->acceptor.promise));
+            MAY_DBG(FN; dbg_reply_set(ep->site, "prep_node_set",
+                                      ep->p->proposer.prep_nodeset);
+                    dbg_reply_set(ep->site, "prop_node_set",
+                                  ep->p->proposer.prop_nodeset););
+            push_msg_3p(ep->site, ep->p, ep->prepare_msg, ep->msgno, normal);
+            ep->start_push = now;
+          }
         }
       }
+      /* When we get here, we know the value for this message number,
+         but it may not be the value we tried to push,
+         so loop until we have a successfull push. */
+      unlock_pax_machine(ep->p);
+      MAY_DBG(FN; STRLIT(" found finished message "); SYCEXP(ep->msgno);
+              STRLIT("seconds since last push ");
+              NPUT(task_now() - ep->start_push, f); STRLIT("ep->client_msg ");
+              COPY_AND_FREE_GOUT(dbg_pax_msg(ep->client_msg->p)););
+      MAY_DBG(FN; STRLIT("ep->p->learner.msg ");
+              COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p->learner.msg)););
+      if (match_my_msg(ep->p->learner.msg, ep->client_msg->p)) {
+        break;
+      } else
+        GOTO(retry_new);
     }
-    /* When we get here, we know the value for this message number,
-       but it may not be the value we tried to push,
-       so loop until we have a successfull push. */
-    unlock_pax_machine(ep->p);
-    MAY_DBG(FN; STRLIT(" found finished message "); SYCEXP(ep->msgno);
-            STRLIT("seconds since last push ");
-            NPUT(task_now() - ep->start_push, f); STRLIT("ep->client_msg ");
-            COPY_AND_FREE_GOUT(dbg_pax_msg(ep->client_msg->p)););
-    MAY_DBG(FN; STRLIT("ep->p->learner.msg ");
-            COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p->learner.msg)););
-    if (match_my_msg(ep->p->learner.msg, ep->client_msg->p)) {
-      break;
-    } else
-      GOTO(retry_new);
-  }
 next : {
   double now = task_now();
   double used = now - ep->start_propose;
@@ -1837,8 +1826,7 @@ TASK_END;
 
 /* {{{ Executor task */
 
-static node_no	leader(site_def const *s)
-{
+static node_no leader(site_def *s) {
   node_no leader = 0;
   for (leader = 0; leader < get_maxnodes(s); leader++) {
     if (!may_be_dead(s->detected, leader, task_now(), DETECTOR_LIVE_TIMEOUT,
@@ -1848,10 +1836,9 @@ static node_no	leader(site_def const *s)
   return 0;
 }
 
-int iamthegreatest(site_def const *s) { return leader(s) == s->nodeno; }
+int iamthegreatest(site_def *s) { return leader(s) == s->nodeno; }
 
-void	execute_msg(site_def const * site, pax_machine *pma, pax_msg *p)
-{
+void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
   app_data_ptr a = p->a;
   DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
   if (a) {
@@ -1898,13 +1885,10 @@ void	execute_msg(site_def const * site, pax_machine *pma, pax_msg *p)
   MAY_DBG(FN; SYCEXP(p->synode));
 }
 
-
-
 static void	read_missing_values(int n);
 static void	propose_missing_values(int n);
 
-static void	find_value(site_def const *site, unsigned int *wait, int n)
-{
+static void find_value(site_def *site, unsigned int *wait, int n) {
   DBGOHK(FN; NDBG(*wait, d));
 
   if (get_nodeno(site) == VOID_NODE_NO) {
@@ -1946,7 +1930,7 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
   *p = get_cache(msgno);
 
   while (!finished(*p)) {
-    site_def const *site = find_site_def(msgno);
+    site_def *site = find_site_def(msgno);
     DBGOHK(FN; STRLIT(" not finished "); SYCEXP(msgno); PTREXP(*p);
            NDBG(ep->wait, u); SYCEXP(msgno));
     if (get_maxnodes(site) > 1 && iamthegreatest(site) &&
@@ -1985,7 +1969,7 @@ synode_no set_executed_msg(synode_no msgno) {
 }
 
 static synode_no first_free_synode(synode_no msgno) {
-  site_def const *site = find_site_def(msgno);
+  site_def *site = find_site_def(msgno);
   synode_no retval = msgno;
   if (get_group_id(site) == 0) {
     DBGOUT(FN; PTREXP(site); SYCEXP(msgno));
@@ -2012,8 +1996,7 @@ synode_no set_current_message(synode_no msgno)
   return current_message = msgno;
 }
 
-
-static void	handle_learn(site_def const * site, pax_machine *p, pax_msg *m);
+static void handle_learn(site_def *site, pax_machine *p, pax_msg *m);
 static void	update_max_synode(pax_msg *p);
 
 #if TASK_DBUG_ON
@@ -2052,8 +2035,7 @@ static void perf_dbg(int *_n, int *_old_n, double *_old_t)
 
 #ifdef IGNORE_LOSERS
 
-static inline int	LOSER(synode_no x, site_def const *site)
-{
+static inline int LOSER(synode_no x, site_def *site) {
   /*  node_no i = 0;
           node_no n = 0;
           node_no maxnodes = get_maxnodes(site);
@@ -2103,8 +2085,7 @@ static void	debug_loser(synode_no x MY_ATTRIBUTE((unused)))
 
 /* #define DBGFIX2(x){ GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
 #define DBGFIX2(x)
-static void	send_value(site_def const *site, node_no to, synode_no synode)
-{
+static void send_value(site_def *site, node_no to, synode_no synode) {
   pax_machine *pm = get_cache(synode);
   if (pm && pm->learner.msg) {
     pax_msg *msg = clone_pax_msg(pm->learner.msg);
@@ -2206,8 +2187,7 @@ static void	delayed_terminate_and_exit(double t)
            XCOM_THREAD_DEBUG);
 }
 
-static inline int is_empty_site(site_def const *s)
-{
+static inline int is_empty_site(site_def *s) {
   return s->nodes.node_list_len == 0;
 }
 
@@ -2261,8 +2241,7 @@ static 	synode_no delivered_msg;
 
 synode_no get_delivered_msg() { return delivered_msg; }
 
-static inline int is_member(site_def const *site)
-{
+static inline int is_member(site_def *site) {
   return site->nodeno != VOID_NODE_NO;
 }
 
@@ -2539,7 +2518,7 @@ static int	executor_task(task_arg arg MY_ATTRIBUTE((unused)))
         MAY_DBG(FN; NDBG(ep->state, d); SYCEXP(ep->exit_synode);
                 SYCEXP(executed_msg));
       } else if (ep->state == EXECUTE) {
-        site_def const *x_site = find_site_def(delivered_msg);
+        site_def *x_site = find_site_def(delivered_msg);
 
         DBGOUT(FN; NDBG(ep->state, d); SYCEXP(delivered_msg);
                SYCEXP(delivered_msg); SYCEXP(executed_msg);
@@ -2659,7 +2638,7 @@ static int sweeper_task(task_arg arg MY_ATTRIBUTE((unused))) {
 
 /* }}} */
 
-static double wakeup_delay(const site_def *site, double old) {
+static double wakeup_delay(site_def *site, double old) {
   double retval = 0.0;
   if (0.0 == old) {
     retval = 0.001 + site->max_conn_rtt;
@@ -2709,7 +2688,7 @@ static double wakeup_delay_for_perf(double old) {
 
 static void propose_noop(synode_no find, pax_machine *p) {
   /* Prepare to send a noop */
-  site_def const *site = find_site_def(find);
+  site_def *site = find_site_def(find);
   pax_msg *clone = NULL;
   assert(!too_far(find));
   replace_pax_msg(&p->proposer.msg, pax_msg_new(find, site));
@@ -2727,7 +2706,7 @@ static void propose_noop(synode_no find, pax_machine *p) {
 
 static void send_read(synode_no find) {
   /* Prepare to send a read_op */
-  site_def const *site = find_site_def(find);
+  site_def *site = find_site_def(find);
   MAY_DBG(FN; NDBG(get_maxnodes(site), u); NDBG(get_nodeno(site), u););
   if (site && find.node != get_nodeno(site)) {
     pax_msg *pm = pax_msg_new(find, site);
@@ -2820,7 +2799,7 @@ void	request_values(synode_no find, synode_no end)
   DBGOUT(FN; SYCEXP(find); SYCEXP(find); SYCEXP(end););
   while (!synode_gt(find, end) && !too_far(find)) {
     pax_machine *p = get_cache(find);
-    site_def const *site = find_site_def(find);
+    site_def *site = find_site_def(find);
     if (get_nodeno(site) == VOID_NODE_NO)
       break;
     if (!finished(p) && !is_busy_machine(p)) {
@@ -2841,7 +2820,7 @@ void	request_values(synode_no find, synode_no end)
 
 /* {{{ Message handlers */
 #if 0
-void	reply_msg(site_def const * site, pax_msg *m)
+void	reply_msg(site_def * site, pax_msg *m)
 {
 		MAY_DBG(FN; );
 		if (get_server(s, m->from)) {
@@ -2880,8 +2859,8 @@ bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source) {
   return TRUE;
 }
 
-static void	teach_ignorant_node(site_def const * site, pax_machine *p, pax_msg *pm, synode_no synode, linkage *reply_queue)
-{
+static void teach_ignorant_node(site_def *site, pax_machine *p, pax_msg *pm,
+                                synode_no synode, linkage *reply_queue) {
   CREATE_REPLY(pm);
   DBGOUT(FN; SYCEXP(synode));
   reply->synode = synode;
@@ -2895,10 +2874,9 @@ static void	teach_ignorant_node(site_def const * site, pax_machine *p, pax_msg *
   }
 }
 
-
 /* Handle incoming read */
-static void	handle_read(site_def const * site, pax_machine *p, linkage *reply_queue, pax_msg *pm)
-{
+static void handle_read(site_def *site, pax_machine *p, linkage *reply_queue,
+                        pax_msg *pm) {
   DBGOUT(FN; BALCEXP(pm->proposal); BALCEXP(p->acceptor.promise);
          if (p->acceptor.msg) BALCEXP(p->acceptor.msg->proposal);
          STRLIT("type "); STRLIT(pax_msg_type_to_str(pm->msg_type)));
@@ -2908,10 +2886,8 @@ static void	handle_read(site_def const * site, pax_machine *p, linkage *reply_qu
   }
 }
 
-
 #ifdef USE_EXIT_TYPE
-static void	miss_prepare(site_def const * site, pax_msg *pm, linkage *reply_queue)
-{
+static void miss_prepare(site_def *site, pax_msg *pm, linkage *reply_queue) {
   CREATE_REPLY(pm);
   DBGOUT(FN; SYCEXP(pm->synode));
   reply->msg_type = normal;
@@ -2921,9 +2897,7 @@ static void	miss_prepare(site_def const * site, pax_msg *pm, linkage *reply_queu
   SEND_REPLY;
 }
 
-
-static void	miss_accept(site_def const * site, pax_msg *pm, linkage *reply_queue)
-{
+static void miss_accept(site_def *site, pax_msg *pm, linkage *reply_queue) {
   CREATE_REPLY(pm);
   DBGOUT(FN; SYCEXP(pm->synode));
   ref_msg(reply);
@@ -2935,11 +2909,10 @@ static void	miss_accept(site_def const * site, pax_msg *pm, linkage *reply_queue
   SEND_REPLY;
 }
 
-
 #endif
 
-static void	handle_simple_prepare(site_def const * site, pax_machine *p, pax_msg *pm, synode_no synode, linkage *reply_queue)
-{
+static void handle_simple_prepare(site_def *site, pax_machine *p, pax_msg *pm,
+                                  synode_no synode, linkage *reply_queue) {
   if (finished(p)) { /* We have learned a value */
     MAY_DBG(FN; SYCEXP(synode); BALCEXP(pm->proposal); NDBG(finished(p), d));
     teach_ignorant_node(site, p, pm, synode, reply_queue);
@@ -2970,10 +2943,9 @@ static void	handle_simple_prepare(site_def const * site, pax_machine *p, pax_msg
   }
 }
 
-
 /* Handle incoming prepare */
-static void	handle_prepare(site_def const * site, pax_machine *p, linkage *reply_queue, pax_msg *pm)
-{
+static void handle_prepare(site_def *site, pax_machine *p, linkage *reply_queue,
+                           pax_msg *pm) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("pm->from"));
              add_event(int_arg(pm->from));
              add_event(string_arg(pax_op_to_str(pm->op))););
@@ -2990,9 +2962,7 @@ static void	handle_prepare(site_def const * site, pax_machine *p, linkage *reply
   handle_simple_prepare(site, p, pm, pm->synode, reply_queue);
 }
 
-
-static void	check_propose(site_def const * site, pax_machine *p)
-{
+static void check_propose(site_def *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
@@ -3005,9 +2975,7 @@ static void	check_propose(site_def const * site, pax_machine *p)
   }
 }
 
-
-static void	check_learn(site_def const * site, pax_machine *p)
-{
+static void check_learn(site_def *site, pax_machine *p) {
   MAY_DBG(FN; SYCEXP(p->synode);
           COPY_AND_FREE_GOUT(dbg_machine_nodeset(p, get_maxnodes(site))););
   PAX_MSG_SANITY_CHECK(p->proposer.msg);
@@ -3025,9 +2993,8 @@ static void	check_learn(site_def const * site, pax_machine *p)
   }
 }
 
-
-static void	do_learn(site_def const * site MY_ATTRIBUTE((unused)), pax_machine *p, pax_msg *m)
-{
+static void do_learn(site_def *site MY_ATTRIBUTE((unused)), pax_machine *p,
+                     pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
@@ -3049,17 +3016,14 @@ static void	do_learn(site_def const * site MY_ATTRIBUTE((unused)), pax_machine *
   shrink_cache();
 }
 
-
-static void	handle_simple_ack_prepare(site_def const * site MY_ATTRIBUTE((unused)), pax_machine *p, pax_msg *m)
-{
+static void handle_simple_ack_prepare(site_def *site MY_ATTRIBUTE((unused)),
+                                      pax_machine *p, pax_msg *m) {
   if (get_nodeno(site) != VOID_NODE_NO)
     BIT_SET(m->from, p->proposer.prep_nodeset);
 }
 
-
 /* Other node has already accepted a value */
-static void	handle_ack_prepare(site_def const * site, pax_machine *p, pax_msg *m)
-{
+static void handle_ack_prepare(site_def *site, pax_machine *p, pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
@@ -3085,10 +3049,9 @@ static void	handle_ack_prepare(site_def const * site, pax_machine *p, pax_msg *m
   }
 }
 
-
 /* Other node has not already accepted a value */
-static void	handle_ack_prepare_empty(site_def const * site, pax_machine *p, pax_msg *m)
-{
+static void handle_ack_prepare_empty(site_def *site, pax_machine *p,
+                                     pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
@@ -3109,11 +3072,10 @@ static void	handle_ack_prepare_empty(site_def const * site, pax_machine *p, pax_
   }
 }
 
-
 /* #define AUTO_MSG(p,synode) {if(!(p)){replace_pax_msg(&(p), pax_msg_new(synode, site));} */
 
-static void	handle_simple_accept(site_def const * site, pax_machine *p, pax_msg *m, synode_no synode, linkage *reply_queue)
-{
+static void handle_simple_accept(site_def *site, pax_machine *p, pax_msg *m,
+                                 synode_no synode, linkage *reply_queue) {
   if (finished(p)) { /* We have learned a value */
     teach_ignorant_node(site, p, m, synode, reply_queue);
   } else if (!gt_ballot(p->acceptor.promise,
@@ -3130,10 +3092,9 @@ static void	handle_simple_accept(site_def const * site, pax_machine *p, pax_msg 
   }
 }
 
-
 /* Accecpt value if promise is not greater */
-static void	handle_accept(site_def const * site, pax_machine *p, linkage *reply_queue, pax_msg *m)
-{
+static void handle_accept(site_def *site, pax_machine *p, linkage *reply_queue,
+                          pax_msg *m) {
   MAY_DBG(FN; BALCEXP(p->acceptor.promise); BALCEXP(m->proposal);
           STREXP(pax_msg_type_to_str(m->msg_type)));
   PAX_MSG_SANITY_CHECK(m);
@@ -3144,10 +3105,8 @@ static void	handle_accept(site_def const * site, pax_machine *p, linkage *reply_
   handle_simple_accept(site, p, m, m->synode, reply_queue);
 }
 
-
 /* Handle answer to accept */
-static void	handle_ack_accept(site_def const * site, pax_machine *p, pax_msg *m)
-{
+static void handle_ack_accept(site_def *site, pax_machine *p, pax_msg *m) {
   ADD_EVENTS(add_synode_event(p->synode); add_event(string_arg("m->from"));
              add_event(int_arg(m->from));
              add_event(string_arg(pax_op_to_str(m->op))););
@@ -3199,8 +3158,7 @@ static void start_force_config(site_def *s)
 
 
 /* Learn this value */
-static void	handle_learn(site_def const * site, pax_machine *p, pax_msg *m)
-{
+static void handle_learn(site_def *site, pax_machine *p, pax_msg *m) {
   MAY_DBG(FN; STRLIT("proposer nodeset ");
           dbg_bitset(p->proposer.prop_nodeset, get_maxnodes(site)););
   MAY_DBG(FN; STRLIT("receivers ");
@@ -3249,10 +3207,8 @@ static void	handle_learn(site_def const * site, pax_machine *p, pax_msg *m)
   task_wakeup(&p->rv);
 }
 
-
 /* Skip this value */
-static void	handle_skip(site_def const * site, pax_machine *p, pax_msg *m)
-{
+static void handle_skip(site_def *site, pax_machine *p, pax_msg *m) {
   /*   MAY_DBG(FN;); */
   /*   MAY_DBG(FN; NDBG(task_now(),f); SYCEXP(p->msg->synode)); */
   if (!finished(p)) {
@@ -3262,7 +3218,6 @@ static void	handle_skip(site_def const * site, pax_machine *p, pax_msg *m)
   /*   MAY_DBG(FN; STRLIT("taskwakeup "); SYCEXP(p->msg->synode)); */
   task_wakeup(&p->rv);
 }
-
 
 static void	handle_client_msg(pax_msg *p)
 {
@@ -3281,12 +3236,19 @@ static void	handle_client_msg(pax_msg *p)
 
 #define PING_GATHERING_TIME_WINDOW 5.0
 #define PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN 5
-int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
+#define MAX_PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN 15
+int pre_process_incoming_ping(site_def *site, pax_msg const *pm,
                               int has_client_already_booted,
                               double current_time) {
   // Yes... it is a ping for me, boot is done and it is a are_you_alive_op
   // This means that something wrong is not right...
   int did_shutdown = 0;
+  int max_number_of_pings_received = PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN;
+
+  if (site && site->large_content_detected) {
+    max_number_of_pings_received =
+        MAX_PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN;
+  }
 
   if ((pm->from != get_nodeno(site)) && has_client_already_booted &&
       (pm->op == are_you_alive_op)) {
@@ -3307,7 +3269,7 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
       // If we keep on receiving periodical pings... lets kill the connection
       if (is_connected(&site->servers[pm->from]->con) &&
           site->servers[pm->from]->number_of_pings_received ==
-              PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN) {
+              max_number_of_pings_received) {
         site->servers[pm->from]->unreachable = DIRECT_ABORT_CONN;
         shutdown_connection(&site->servers[pm->from]->con);
         G_WARNING(
@@ -3325,7 +3287,7 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
 
 /* Handle incoming alive message */
 static double	sent_alive = 0.0;
-static inline void handle_alive(site_def const *site, linkage *reply_queue,
+static inline void handle_alive(site_def *site, linkage *reply_queue,
                                 pax_msg *pm) {
   int not_to_oneself;
 
@@ -3422,8 +3384,8 @@ static int clicnt = 0;
 static u_int is_reincarnation_adding(app_data_ptr a)
 {
   /* Get information on the current site definition */
-  const site_def *new_site_def = get_site_def();
-  const site_def *valid_site_def = find_site_def(executed_msg);
+  site_def *new_site_def = get_site_def();
+  site_def *valid_site_def = find_site_def(executed_msg);
 
   /* Get information on the nodes to be added */
   u_int nodes_len = a->body.app_u_u.nodes.node_list_len;
@@ -3468,7 +3430,7 @@ static u_int is_reincarnation_adding(app_data_ptr a)
 static u_int is_reincarnation_removing(app_data_ptr a)
 {
   /* Get information on the current site definition */
-  const site_def *new_site_def = get_site_def();
+  site_def *new_site_def = get_site_def();
 
   /* Get information on the nodes to be added */
   u_int nodes_len = a->body.app_u_u.nodes.node_list_len;
@@ -3569,7 +3531,7 @@ static void activate_sweeper()
   }
 }
 
-pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
+pax_msg *dispatch_op(site_def *site, pax_msg *p, linkage *reply_queue) {
   pax_machine *pm = NULL;
   site_def *dsite = find_site_def_rw(p->synode);
   int in_front = too_far(p->synode);
@@ -3956,7 +3918,7 @@ int	acceptor_learner_task(task_arg arg)
 
   while (!xcom_shutdown) {
     int64_t n;
-    site_def const *site = 0;
+    site_def *site = 0;
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
     if (use_buffered_read) {
@@ -4134,7 +4096,7 @@ int	acceptor_learner_task(task_arg arg)
 /* {{{ Reply handler task */
 int const need_boot_special = 1;
 
-static void	server_handle_need_snapshot(server *srv, site_def const *s, node_no node);
+static void server_handle_need_snapshot(server *srv, site_def *s, node_no node);
 
 int	reply_handler_task(task_arg arg)
 {
@@ -4365,8 +4327,8 @@ void send_client_config(char *srv, xcom_port port, node_list *nl)
 }
 /* purecov: end */
 
-static void	server_send_snapshot(server *srv, site_def const *s, gcs_snapshot *gcs_snap, node_no node)
-{
+static void server_send_snapshot(server *srv, site_def *s,
+                                 gcs_snapshot *gcs_snap, node_no node) {
   pax_msg *p = pax_msg_new(gcs_snap->log_start, get_site_def());
   ref_msg(p);
   p->op = gcs_snapshot_op;
@@ -4376,8 +4338,7 @@ static void	server_send_snapshot(server *srv, site_def const *s, gcs_snapshot *g
 }
 
 /* purecov: begin deadcode */
-static void	send_snapshot(site_def const *s, gcs_snapshot *gcs_snap, node_no node)
-{
+static void send_snapshot(site_def *s, gcs_snapshot *gcs_snap, node_no node) {
   assert(s->servers[node]);
   server_send_snapshot(s->servers[node], s, gcs_snap, node);
 }
@@ -4385,7 +4346,7 @@ static void	send_snapshot(site_def const *s, gcs_snapshot *gcs_snap, node_no nod
 
 static void	server_push_log(server *srv, synode_no push, node_no node)
 {
-  site_def const *s = get_site_def();
+  site_def *s = get_site_def();
   while (!synode_gt(push, get_max_synode())) {
     if (is_cached(push)) {
       pax_machine *p = get_cache_no_touch(push);
@@ -4408,7 +4369,7 @@ static void	server_push_log(server *srv, synode_no push, node_no node)
 /* purecov: begin deadcode */
 static void	push_log(synode_no push, node_no node)
 {
-  site_def const *s = get_site_def();
+  site_def *s = get_site_def();
   assert(s->servers[node]);
   server_push_log(s->servers[node], push, node);
 }
@@ -4418,8 +4379,7 @@ static app_snap_getter get_app_snap;
 static app_snap_handler handle_app_snap;
 
 /* purecov: begin deadcode */
-static void	handle_need_snapshot(site_def const *s, node_no node)
-{
+static void handle_need_snapshot(site_def *s, node_no node) {
   gcs_snapshot *gs = export_config();
   synode_no app_lsn = get_app_snap(&gs->app_snap);
   if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start))
@@ -4429,8 +4389,8 @@ static void	handle_need_snapshot(site_def const *s, node_no node)
 }
 /* purecov: end */
 
-static void	server_handle_need_snapshot(server *srv, site_def const *s, node_no node)
-{
+static void server_handle_need_snapshot(server *srv, site_def *s,
+                                        node_no node) {
   gcs_snapshot *gs = export_config();
   synode_no app_lsn = get_app_snap(&gs->app_snap);
   if (!synode_eq(null_synode, app_lsn) && synode_lt(app_lsn, gs->log_start)) {

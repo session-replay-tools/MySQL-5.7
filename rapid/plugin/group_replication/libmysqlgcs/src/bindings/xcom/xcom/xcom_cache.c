@@ -257,10 +257,10 @@ pax_machine *get_cache(synode_no synode)
 static inline int can_deallocate(lru_machine *link_iter)
 {
 	synode_no delivered_msg;
-	site_def const *site = get_site_def();
-	site_def const *dealloc_site = find_site_def(link_iter->pax.synode);
+        site_def *site = get_site_def();
+        site_def *dealloc_site = find_site_def(link_iter->pax.synode);
 
-	/* If we have no site, or site was just installed, refuse deallocation */
+        /* If we have no site, or site was just installed, refuse deallocation */
 	if(site == 0)
 		return 0;
         /*

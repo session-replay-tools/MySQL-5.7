@@ -62,15 +62,15 @@ synode_no decr_synode(synode_no synode);
 
 void broadcast_recover_end();
 char *dbg_pax_msg(pax_msg const *p);
-pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue);
+pax_msg *dispatch_op(site_def *site, pax_msg *p, linkage *reply_queue);
 synode_no set_executed_msg(synode_no msgno);
 void request_values(synode_no find, synode_no end);
 void set_group(uint32_t id);
 void check_tasks();
 int xcom_booted();
-int iamthegreatest(site_def const *s);
+int iamthegreatest(site_def *s);
 void xcom_send(app_data_ptr a, pax_msg *msg);
-void deliver_view_msg(site_def const *site);
+void deliver_view_msg(site_def *site);
 int reply_handler_task(task_arg arg);
 int acceptor_learner_task(task_arg arg);
 synode_no get_max_synode();
@@ -94,8 +94,8 @@ void set_force_recover(bool_t const x);
 void add_to_cache(app_data_ptr a, synode_no synode);
 uint32_t new_id();
 synode_no get_boot_key();
-site_def const *get_executor_site();
-site_def const *get_proposer_site();
+site_def *get_executor_site();
+site_def *get_proposer_site();
 synode_no get_current_message();
 void start_run_tasks();
 
@@ -189,7 +189,7 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
    Registers a callback that is called right after
    the accept routine returns.
  */
-typedef int (*xcom_socket_accept_cb)(int fd, site_def const *xcom_config);
+typedef int (*xcom_socket_accept_cb)(int fd, site_def *xcom_config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
 connection_descriptor *xcom_open_client_connection(char *server,
@@ -216,7 +216,7 @@ int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
 
-int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
+int pre_process_incoming_ping(site_def *site, pax_msg const *pm,
                               int has_client_already_booted,
                               double current_time);
 

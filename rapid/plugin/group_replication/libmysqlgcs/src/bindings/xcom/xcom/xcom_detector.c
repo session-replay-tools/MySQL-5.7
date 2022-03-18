@@ -57,10 +57,11 @@ int may_be_dead(detector_state const ds, node_no i, double seconds, int silent,
   }
 }
 
-static int detect_node_timeout(site_def const *site, node_no node) {
+static int detect_node_timeout(site_def *site, node_no node) {
   int alive = 1;
   ulong timeout = DETECTOR_LIVE_TIMEOUT;
   double current = task_now();
+  site->large_content_detected = 0;
   if (site->servers[node]->unreachable >= MAX_CONNECT_FAIL_TIMES) {
     timeout = 1;
   } else if (site->servers[node]->unreachable == DIRECT_ABORT_CONN) {
@@ -68,7 +69,8 @@ static int detect_node_timeout(site_def const *site, node_no node) {
   } else {
     double diff = current - site->servers[node]->large_transfer_detected;
     if (diff < timeout) {
-      timeout = timeout << 2;
+      timeout = DETECTOR_MAX_LIVE_TIMEOUT;
+      site->large_content_detected = 1;
     }
   }
   if (alive) {
@@ -87,8 +89,7 @@ void init_detector(detector_state ds)
   }
 }
 
-void note_detected(site_def const *site, node_no node)
-{
+void note_detected(site_def *site, node_no node) {
   /* site->servers's size is NSERVERS. */
   assert(site->nodes.node_list_len <= NSERVERS);
 
@@ -106,7 +107,7 @@ void note_detected(site_def const *site, node_no node)
  *
  * @return 1 if the server is connected. 0 otherwise.
  */
-int is_server_connected(struct site_def const *site, node_no node) {
+int is_server_connected(struct site_def *site, node_no node) {
   int retval = 0;
 
   if (site) {
@@ -120,8 +121,7 @@ int is_server_connected(struct site_def const *site, node_no node) {
   return retval;
 }
 
-static void reset_detected(site_def const *site, u_int node)
-{
+static void reset_detected(site_def *site, u_int node) {
   /*   DBGOUT(FN; NDBG(node,d);); */
   /* site->servers's size is NSERVERS. */
   assert(site->nodes.node_list_len <= NSERVERS);
@@ -130,8 +130,7 @@ static void reset_detected(site_def const *site, u_int node)
   }
 }
 
-static void reset_disjunct_servers(site_def const *old_site, site_def const *new_site)
-{
+static void reset_disjunct_servers(site_def *old_site, site_def *new_site) {
   u_int node;
 
   if (old_site && new_site) {
@@ -167,8 +166,7 @@ void update_detected(site_def *site, double conn_rtt) {
   }
 }
 
-int	enough_live_nodes(site_def const *site)
-{
+int enough_live_nodes(site_def *site) {
   node_no i = 0;
   double t = task_now();
   node_no n = 0;
@@ -182,14 +180,17 @@ int	enough_live_nodes(site_def const *site)
   /* DBGOUT(FN; NDBG(maxnodes,d); );*/
   if (maxnodes == 0)
     return 0;
+
+  site->large_content_detected = 0;
   for (i = 0; i < maxnodes; i++) {
     ulong timeout = DETECTOR_LIVE_TIMEOUT;
     double diff = task_now() - site->servers[i]->large_transfer_detected;
     if (diff < timeout) {
-      timeout = timeout << 2;
+      timeout = DETECTOR_MAX_LIVE_TIMEOUT;
+      site->large_content_detected = 1;
     }
 
-    if (i == self || t - site->detected[i] < timeout) {
+    if (i == self || (t - site->detected[i] < timeout)) {
       n++;
     }
   }
@@ -198,7 +199,7 @@ int	enough_live_nodes(site_def const *site)
          (n > maxnodes / 2 || (ARBITRATOR_HACK && (2 == maxnodes)));
 }
 
-static void send_my_view(site_def const *site);
+static void send_my_view(site_def *site);
 
 #define DETECT(site) (i == get_nodeno(site)) || (site->detected[i] + DETECTOR_LIVE_TIMEOUT > task_now())
 
@@ -247,8 +248,7 @@ static void	check_local_node_set(site_def *site, int *notify)
   }
 }
 
-static node_no	leader(site_def const *s)
-{
+static node_no leader(site_def *s) {
   node_no leader = 0;
   for (leader = 0; leader < get_maxnodes(s); leader++) {
     if (!may_be_dead(s->detected, leader, task_now(), DETECTOR_LIVE_TIMEOUT,
@@ -259,7 +259,7 @@ static node_no	leader(site_def const *s)
   return 0;
 }
 
-int iamtheleader(site_def const *s) { return leader(s) == s->nodeno; }
+int iamtheleader(site_def *s) { return leader(s) == s->nodeno; }
 
 extern synode_no executed_msg;
 extern synode_no max_synode;
@@ -348,8 +348,7 @@ int	detector_task(task_arg arg MY_ATTRIBUTE((unused)))
   TASK_END;
 }
 
-node_set detector_node_set(site_def const *site)
-{
+node_set detector_node_set(site_def *site) {
   node_set new_set;
   new_set.node_set_len = 0;
   new_set.node_set_val = 0;
@@ -366,8 +365,7 @@ node_set detector_node_set(site_def const *site)
   return new_set;
 }
 
-static void send_my_view(site_def const *site)
-{
+static void send_my_view(site_def *site) {
   app_data_ptr a = new_app_data();
   pax_msg *msg = pax_msg_new(null_synode, site);
   DBGOHK(FN;);
@@ -375,7 +373,6 @@ static void send_my_view(site_def const *site)
   a->body.app_u_u.present = detector_node_set(site);
   xcom_send(a, msg);
 }
-
 
 /* {{{ Alive task */
 
@@ -395,7 +392,7 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
   while (!xcom_shutdown) {
     double sec = task_now();
     synode_no alive_synode = get_current_message();
-    site_def const *site = find_site_def(alive_synode);
+    site_def *site = find_site_def(alive_synode);
     if (site && get_nodeno(site) != VOID_NODE_NO) {
       /* Send alive if we have not been active for some time */
       if (server_active(site, get_nodeno(site)) < sec - 0.5) {
@@ -407,10 +404,12 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
       /* Ping nodes which seem absent */
       {
         node_no i;
+        site->large_content_detected = 0;
         for (i = 0; i < get_maxnodes(site); i++) {
           double diff = task_now() - site->servers[i]->large_transfer_detected;
           if (diff < DETECTOR_LIVE_TIMEOUT) {
-            ep->silent = ep->silent << 2;
+            ep->silent = DETECTOR_MAX_LIVE_TIMEOUT;
+            site->large_content_detected = 1;
           }
 
           if (i != get_nodeno(site) &&

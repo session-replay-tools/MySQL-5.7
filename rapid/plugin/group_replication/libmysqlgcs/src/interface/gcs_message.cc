@@ -41,9 +41,13 @@ Gcs_message_data::Gcs_message_data(const uint32_t header_capacity,
       m_owner(true) {
   m_buffer_len = header_capacity + payload_capacity + get_encode_header_size();
   m_buffer = static_cast<uchar *>(malloc(sizeof(uchar) * m_buffer_len));
-  m_header = m_header_slider = m_buffer + get_encode_header_size();
-  m_payload = m_payload_slider =
-      m_buffer + get_encode_header_size() + header_capacity;
+  if (m_buffer) {
+    m_header = m_header_slider = m_buffer + get_encode_header_size();
+    m_payload = m_payload_slider =
+        m_buffer + get_encode_header_size() + header_capacity;
+  } else {
+    MYSQL_GCS_LOG_ERROR("m_buffer is null, m_buffer_len:" << m_buffer_len);
+  }
 }
 
 Gcs_message_data::Gcs_message_data(const uint64_t data_len)
@@ -52,6 +56,9 @@ Gcs_message_data::Gcs_message_data(const uint64_t data_len)
       m_payload_len(0), m_payload_capacity(0), m_buffer(NULL),
       m_buffer_len(data_len), m_owner(true) {
   m_buffer = static_cast<uchar *>(malloc(sizeof(uchar) * m_buffer_len));
+  if (!m_buffer) {
+    MYSQL_GCS_LOG_ERROR("m_buffer is nil, m_buffer_len:" << m_buffer_len);
+  }
 }
 
 Gcs_message_data::~Gcs_message_data()
@@ -118,14 +125,19 @@ bool Gcs_message_data::append_to_payload(const uchar *to_append,
                         << " but it "
                            "has been requested to add data whose size is "
                         << to_append_len);
-    return true;
+    return false;
   }
 
-  memcpy(m_payload_slider, to_append, to_append_len);
-  m_payload_slider += to_append_len;
-  m_payload_len += to_append_len;
+  if (m_payload_slider) {
+    memcpy(m_payload_slider, to_append, to_append_len);
+    m_payload_slider += to_append_len;
+    m_payload_len += to_append_len;
+    return true;
+  } else {
+    MYSQL_GCS_LOG_ERROR("m_payload_slider is nil");
+    return false;
+  }
 
-  return false;
 }
 
 /* purecov: begin deadcode */

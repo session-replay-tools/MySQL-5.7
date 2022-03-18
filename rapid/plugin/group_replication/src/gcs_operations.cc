@@ -299,9 +299,13 @@ Gcs_operations::send_message(const Plugin_gcs_message &message,
 
   Gcs_member_identifier origin = gcs_control->get_local_member_identifier();
   Gcs_message gcs_message(origin, new Gcs_message_data(0, message_data.size()));
-  gcs_message.get_message_data().append_to_payload(&message_data.front(),
-                                                   message_data.size());
-  error = gcs_communication->send_message(gcs_message);
+  bool result = gcs_message.get_message_data().append_to_payload(
+      &message_data.front(), message_data.size());
+  if (result) {
+    error = gcs_communication->send_message(gcs_message);
+  } else {
+    error = GCS_MESSAGE_TOO_BIG;
+  }
 
   gcs_operations_lock->unlock();
   DBUG_RETURN(error);

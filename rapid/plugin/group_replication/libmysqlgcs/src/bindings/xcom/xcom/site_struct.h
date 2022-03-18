@@ -42,7 +42,8 @@ struct site_def {
 	node_set global_node_set;	/* The global view */
 	node_set local_node_set;	/* The local view */
 	int detector_updated;		/* Has detector state been updated? */
-	xcom_proto x_proto;
+        int large_content_detected;     /* Has detector state been updated? */
+        xcom_proto x_proto;
 	synode_no delivered_msg[NSERVERS];
 	double install_time;
         double max_conn_rtt;

@@ -806,11 +806,9 @@ Gcs_ip_whitelist::do_check_block_whitelist(
   return block;
 }
 
-bool
-Gcs_ip_whitelist::do_check_block_xcom(
-  std::vector<unsigned char> const& incoming_octets,
-  site_def const *xcom_config) const
-{
+bool Gcs_ip_whitelist::do_check_block_xcom(
+    std::vector<unsigned char> const &incoming_octets,
+    site_def *xcom_config) const {
   /*
     Check if the incoming IP matches the IP of any XCom member.
     The check compares both IPs' bytes (octets) in network byte order.
@@ -869,10 +867,8 @@ Gcs_ip_whitelist::do_check_block_xcom(
   return block;
 }
 
-bool
-Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa,
-                                 site_def const *xcom_config) const
-{
+bool Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa,
+                                      site_def *xcom_config) const {
   bool block= true;
   unsigned char *buf;
   std::vector<unsigned char> ip;
@@ -906,9 +902,7 @@ end:
   return block;
 }
 
-bool
-Gcs_ip_whitelist::shall_block(int fd, site_def const *xcom_config) const
-{
+bool Gcs_ip_whitelist::shall_block(int fd, site_def *xcom_config) const {
   bool ret= true;
   if (fd > 0)
   {
@@ -934,10 +928,8 @@ Gcs_ip_whitelist::shall_block(int fd, site_def const *xcom_config) const
   return ret;
 }
 
-bool
-Gcs_ip_whitelist::shall_block(const std::string& ip_addr,
-                              site_def const *xcom_config) const
-{
+bool Gcs_ip_whitelist::shall_block(const std::string &ip_addr,
+                                   site_def *xcom_config) const {
   bool ret= true;
   if (!ip_addr.empty())
   {

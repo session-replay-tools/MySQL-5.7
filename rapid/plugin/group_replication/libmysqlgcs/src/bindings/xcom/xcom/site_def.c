@@ -58,7 +58,7 @@ init_xdr_array(site_def_ptr) free_xdr_array(site_def_ptr)
     /* FIFO of site definitions */
     static site_def_ptr_array site_defs;
 static site_def *incoming = 0;
-static inline node_no _get_maxnodes(site_def const *site);
+static inline node_no _get_maxnodes(site_def *site);
 
 /* purecov: begin deadcode */
 /* Save incoming site def, but do not make it available yet */
@@ -154,8 +154,7 @@ site_def *push_site_def(site_def *s)
 }
 
 /* Return first site def */
-static inline site_def const *_get_site_def()
-{
+static inline site_def *_get_site_def() {
   assert(site_defs.count == 0 || !site_defs.site_def_ptr_array_val[0] ||
          site_defs.site_def_ptr_array_val[0]->global_node_set.node_set_len ==
              _get_maxnodes(site_defs.site_def_ptr_array_val[0]));
@@ -164,7 +163,6 @@ static inline site_def const *_get_site_def()
   else
     return 0;
 }
-
 
 /* Return first site def */
 site_def *get_site_def_rw()
@@ -177,8 +175,7 @@ site_def *get_site_def_rw()
 
 /* purecov: begin deadcode */
 /* Return previous site def */
-static inline site_def const *_get_prev_site_def()
-{
+static inline site_def *_get_prev_site_def() {
   assert(site_defs.count == 0 || !site_defs.site_def_ptr_array_val[1] ||
          site_defs.site_def_ptr_array_val[1]->global_node_set.node_set_len ==
              _get_maxnodes(site_defs.site_def_ptr_array_val[1]));
@@ -192,24 +189,22 @@ static inline site_def const *_get_prev_site_def()
 
 
 /* Return first site def */
-site_def const *get_site_def() { return _get_site_def(); }
+site_def *get_site_def() { return _get_site_def(); }
 
 /* purecov: begin deadcode */
 /* Return previous site def */
-site_def const *get_prev_site_def() { return _get_prev_site_def(); }
+site_def *get_prev_site_def() { return _get_prev_site_def(); }
 /* purecov: end */
 
-static inline int match_def(site_def const *site, synode_no synode)
-{
+static inline int match_def(site_def *site, synode_no synode) {
   return site &&
          (synode.group_id == 0 || synode.group_id == site->start.group_id) &&
          !synode_lt(synode, site->start);
 }
 
 /* Return first site def which has start less than or equal to synode */
-site_def const *find_site_def(synode_no synode)
-{
-  site_def const *retval = 0;
+site_def *find_site_def(synode_no synode) {
+  site_def *retval = 0;
   u_int i;
 
   for (i = 0; i < site_defs.count; i++)
@@ -264,8 +259,7 @@ void garbage_collect_site_defs(synode_no x)
 }
 
 /* purecov: begin deadcode */
-char *dbg_site_def(site_def const *site)
-{
+char *dbg_site_def(site_def *site) {
   assert(site->global_node_set.node_set_len == _get_maxnodes(site));
   return dbg_list(&site->nodes);
 }
@@ -282,8 +276,7 @@ site_def *new_site_def()
 
 /* {{{ Clone a site definition */
 
-site_def *clone_site_def(site_def const *site)
-{
+site_def *clone_site_def(site_def *site) {
   site_def *retval = new_site_def();
   assert(site->global_node_set.node_set_len == _get_maxnodes(site));
   *retval = *site;
@@ -295,7 +288,6 @@ site_def *clone_site_def(site_def const *site)
   DBGOUT(FN; PTREXP(site); PTREXP(retval));
   return retval;
 }
-
 
 /* }}} */
 
@@ -374,8 +366,7 @@ void	set_boot_key(synode_no const x)
 /* purecov: end */
 
 /* Return group id of site */
-uint32_t get_group_id(site_def const *site)
-{
+uint32_t get_group_id(site_def *site) {
   if (site) {
     uint32_t group_id = site->start.group_id;
     assert(site->global_node_set.node_set_len == _get_maxnodes(site));
@@ -385,7 +376,6 @@ uint32_t get_group_id(site_def const *site)
     return null_id;
   }
 }
-
 
 #if 0
 void	set_group_id(site_def *site, uint32_t id)
@@ -401,25 +391,22 @@ void	set_group_id(site_def *site, uint32_t id)
 
 #endif
 
-static inline node_no _get_maxnodes(site_def const *site)
-{
+static inline node_no _get_maxnodes(site_def *site) {
   if (site) {
     return site->nodes.node_list_len;
   } else
     return 0;
 }
 
-
 /* Return maxnodes of site */
-node_no get_maxnodes(site_def const *site) { return _get_maxnodes(site); }
+node_no get_maxnodes(site_def *site) { return _get_maxnodes(site); }
 
 /* purecov: begin deadcode */
 node_no get_prev_maxnodes() { return _get_maxnodes(_get_prev_site_def()); }
 /* purecov: end */
 
 /* Return nodeno of site */
-static inline node_no _get_nodeno(site_def const *site)
-{
+static inline node_no _get_nodeno(site_def *site) {
   if (site) {
     assert(site->global_node_set.node_set_len == _get_maxnodes(site));
     return site->nodeno;
@@ -429,7 +416,7 @@ static inline node_no _get_nodeno(site_def const *site)
 
 /* purecov: begin deadcode */
 /* Return nodeno of site */
-node_no get_nodeno(site_def const *site) { return _get_nodeno(site); }
+node_no get_nodeno(site_def *site) { return _get_nodeno(site); }
 /* purecov: end */
 
 node_no get_prev_nodeno() { return _get_nodeno(_get_prev_site_def()); }
@@ -478,18 +465,19 @@ gcs_snapshot *export_config()
 
 
 /* Return the global minimum delivered message number, based on incoming gossip */
-synode_no get_min_delivered_msg(site_def const *s)
-{
+synode_no get_min_delivered_msg(site_def *s) {
   u_int i;
   synode_no retval = null_synode;
   int init = 1;
   double current = task_now();
+  s->large_content_detected = 0;
 
   for (i = 0; i < s->nodes.node_list_len; i++) {
     ulong timeout = DETECTOR_LIVE_TIMEOUT;
     double diff = current - s->servers[i]->large_transfer_detected;
     if (diff < timeout) {
-      timeout = timeout << 2;
+      timeout = DETECTOR_MAX_LIVE_TIMEOUT;
+      s->large_content_detected = 1;
     }
     if (s->servers[i]->detected + timeout > task_now()) {
       if (init) {
@@ -505,7 +493,6 @@ synode_no get_min_delivered_msg(site_def const *s)
   DBGOUT(FN; SYCEXP(retval));
   return retval;
 }
-
 
 /* Track the minimum delivered message numbers based on incoming messages */
 void update_delivered(site_def *s, node_no node, synode_no msgno)

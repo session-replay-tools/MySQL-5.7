@@ -50,7 +50,7 @@ int	unref_msg(pax_msg **pp);
 pax_msg *clone_pax_msg_no_app(pax_msg *msg);
 pax_msg *clone_pax_msg(pax_msg *msg);
 ballot *init_ballot(ballot *bal, int cnt, node_no node);
-pax_msg *pax_msg_new(synode_no synode, site_def const *site);
+pax_msg *pax_msg_new(synode_no synode, site_def *site);
 pax_msg *pax_msg_new_0(synode_no synode);
 void dbg_ballot(ballot const *p, char *s);
 char *dbg_pax_msg(pax_msg const *p);

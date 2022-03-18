@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-void deliver_global_view_msg(site_def const * site,  synode_no message_id);
+void deliver_global_view_msg(site_def *site, synode_no message_id);
 void deliver_to_app(pax_machine *pma, app_data_ptr app, delivery_status app_status);
 
 #ifdef __cplusplus

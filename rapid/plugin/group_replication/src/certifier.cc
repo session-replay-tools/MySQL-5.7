@@ -1408,12 +1408,6 @@ int Certifier::handle_certifier_data(
       Group_member_info *member_info =
           group_member_mgr->get_group_member_info_by_member_id(gcs_member_id);
       if (member_info != NULL) {
-        log_message(
-            MY_WARNING_LEVEL,
-            "The member with address %s:%u has "
-            "already sent the stable set. Therefore discarding the second "
-            "message.",
-            member_info->get_hostname().c_str(), member_info->get_port());
         delete member_info;
       }
     }

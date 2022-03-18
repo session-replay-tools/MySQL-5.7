@@ -69,6 +69,8 @@ xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol versio
 /* #define XCOM_ECM */
 
 #define SERVER_MAX (2*NSERVERS)
+#define LARGE_TRAN_THRESHOLD 10485760
+#define RECORED_LARGE_TRAN_THRESHOLD 67108864
 
 /* Turn Nagle's algorithm on or off */
 static int const NAGLE = 0;
@@ -218,7 +220,12 @@ static int	_send_msg(server *s, pax_msg *p, node_no to, int64_t *ret)
           /* Still not enough? Message must be huge, send without buffering */
           if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
             DBGOUT(FN; STRLIT("task_write"));
-            s->large_transfer_detected = task_now();
+            if (ep->buflen > LARGE_TRAN_THRESHOLD) {
+              s->large_transfer_detected = task_now();
+              if (ep->buflen > RECORED_LARGE_TRAN_THRESHOLD) {
+                G_MESSAGE("large transaction size:%u", ep->buflen);
+              }
+            }
             TASK_CALL(task_write(&s->con, ep->buf, ep->buflen, &sent));
             if (s->con.fd < 0) {
               TASK_FAIL;
@@ -814,15 +821,12 @@ static void freesrv(server *s)
   X_FREE(s);
 }
 
-
-double	server_active(site_def const *s, node_no i)
-{
+double server_active(site_def *s, node_no i) {
   if (s->servers[i])
     return s->servers[i]->active;
   else
     return 0.0;
 }
-
 
 /* Shutdown server */
 static void shut_srv(server *s)
@@ -1054,9 +1058,7 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
   return 0;
 }
 
-
-static inline int	_send_server_msg(site_def const *s, node_no to, pax_msg *p)
-{
+static inline int _send_server_msg(site_def *s, node_no to, pax_msg *p) {
   assert(s);
   assert(s->servers[to]);
   if (s->servers[to] && s->servers[to]->invalid == 0 && p) {
@@ -1065,14 +1067,12 @@ static inline int	_send_server_msg(site_def const *s, node_no to, pax_msg *p)
   return 0;
 }
 
-
-int send_server_msg(site_def const *s, node_no to, pax_msg *p)
-{
+int send_server_msg(site_def *s, node_no to, pax_msg *p) {
   return _send_server_msg(s, to, p);
 }
 
-static inline int send_loop(site_def const *s, node_no max, pax_msg *p, const char *dbg MY_ATTRIBUTE((unused)))
-{
+static inline int send_loop(site_def *s, node_no max, pax_msg *p,
+                            const char *dbg MY_ATTRIBUTE((unused))) {
   int retval = 0;
   assert(s);
   if (s) {
@@ -1086,10 +1086,8 @@ static inline int send_loop(site_def const *s, node_no max, pax_msg *p, const ch
   return retval;
 }
 
-
 /* Send to all servers in site */
-int	send_to_all_site(site_def const *s, pax_msg *p, const char *dbg)
-{
+int send_to_all_site(site_def *s, pax_msg *p, const char *dbg) {
   int retval = 0;
   retval = send_loop(s, get_maxnodes(s), p, dbg);
   return retval;
@@ -1101,9 +1099,8 @@ int	send_to_all(pax_msg *p, const char *dbg)
   return send_to_all_site(find_site_def(p->synode), p, dbg);
 }
 
-
-static inline int send_other_loop(site_def const *s, pax_msg *p, const char *dbg MY_ATTRIBUTE((unused)))
-{
+static inline int send_other_loop(site_def *s, pax_msg *p,
+                                  const char *dbg MY_ATTRIBUTE((unused))) {
   int retval = 0;
   node_no i = 0;
 #ifdef MAXACCEPT
@@ -1123,18 +1120,16 @@ static inline int send_other_loop(site_def const *s, pax_msg *p, const char *dbg
   return retval;
 }
 
-
 /* Send to other servers */
-int	send_to_others(site_def const *s, pax_msg *p, const char *dbg)
-{
+int send_to_others(site_def *s, pax_msg *p, const char *dbg) {
   int retval = 0;
   retval = send_other_loop(s, p, dbg);
   return retval;
 }
 
 /* Send to some other live server, round robin */
-int	send_to_someone(site_def const *s, pax_msg *p, const char *dbg MY_ATTRIBUTE((unused)))
-{
+int send_to_someone(site_def *s, pax_msg *p,
+                    const char *dbg MY_ATTRIBUTE((unused))) {
   int retval = 0;
   static node_no i = 0;
   node_no prev = 0;
@@ -1163,12 +1158,11 @@ int	send_to_someone(site_def const *s, pax_msg *p, const char *dbg MY_ATTRIBUTE(
   return retval;
 }
 
-
 #ifdef MAXACCEPT
 /* Send to all acceptors */
 int	send_to_acceptors(pax_msg *p, const char *dbg)
 {
-  site_def const *s = find_site_def(p->synode);
+  site_def *s = find_site_def(p->synode);
   int retval = 0;
   int i;
   retval = send_loop(s, MIN(MAXACCEPT, s->maxnodes), p, dbg);
@@ -1834,7 +1828,7 @@ void update_servers(site_def *s, cargo_type operation)
      */
 
     if (operation == force_config_type) {
-      const site_def *old_site_def = get_prev_site_def();
+      site_def *old_site_def = get_prev_site_def();
       invalidate_servers(old_site_def, s);
     }
   }
@@ -1845,8 +1839,7 @@ void update_servers(site_def *s, cargo_type operation)
    that do not belong to the new site_def.
    This is only to be used if we are forcing a configuration.
  */
-void invalidate_servers(const site_def *old_site_def,
-                        const site_def *new_site_def) {
+void invalidate_servers(site_def *old_site_def, site_def *new_site_def) {
   u_int node = 0;
   for (; node < get_maxnodes(old_site_def); node++) {
     node_address *node_addr_from_old_site_def =
@@ -2077,8 +2070,7 @@ void reset_connection(connection_descriptor *con)
 
 /* The protocol version used by the group as a whole is the minimum of the
    maximum protocol versions in the config. */
-xcom_proto common_xcom_version(site_def const *site)
-{
+xcom_proto common_xcom_version(site_def *site) {
   u_int i;
   xcom_proto min_proto = my_xcom_version;
   for (i = 0; i < site->nodes.node_list_len; i++) {

@@ -520,9 +520,7 @@ int group_replication_trans_before_commit(Trans_param *param)
       transaction_size > transaction_size_limit) {
     log_message(MY_ERROR_LEVEL,
                 "Error on session %u. "
-                "Transaction of size %llu exceeds specified limit %lu. "
-                "To increase the limit please adjust "
-                "group_replication_transaction_size_limit option.",
+                "Transaction of size %llu exceeds specified limit %lu. ",
                 param->thread_id, transaction_size, transaction_size_limit);
     error = pre_wait_error;
     goto err;

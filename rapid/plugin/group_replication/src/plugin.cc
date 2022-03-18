@@ -201,8 +201,8 @@ int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
 
 /* Transaction size limits */
-#define DEFAULT_TRANSACTION_SIZE_LIMIT 0
-#define MAX_TRANSACTION_SIZE_LIMIT 2147483647
+#define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
+#define MAX_TRANSACTION_SIZE_LIMIT 150000000
 #define MIN_TRANSACTION_SIZE_LIMIT 0
 ulong transaction_size_limit_base_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
 int64 transaction_size_limit_var;
@@ -2209,6 +2209,9 @@ static void update_transaction_size_limit(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                           const void *save) {
 
   ulong in_val = *static_cast<const ulong *>(save);
+  if (in_val == 0) {
+    in_val = MAX_TRANSACTION_SIZE_LIMIT;
+  }
   *static_cast<ulong *>(var_ptr) = in_val;
   my_atomic_store64(&transaction_size_limit_var, in_val);
 
