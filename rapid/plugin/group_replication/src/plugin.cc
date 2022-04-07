@@ -2688,14 +2688,14 @@ static MYSQL_SYSVAR_ULONG(
     request_time_threshold,     /* name */
     request_time_threshold_var, /* var */
     PLUGIN_VAR_OPCMDARG,        /* optional var */
-    "Specifies the threshold value(in microsecond) of group replication "
+    "Specifies the threshold value(in millisecond) of group replication "
     "request time that can be logged.",
-    NULL,      /* check func. */
-    NULL,      /* update func. */
-    0,         /* default */
-    0,         /* min */
-    100000000, /* max */
-    0          /* block */
+    NULL,   /* check func. */
+    NULL,   /* update func. */
+    0,      /* default */
+    0,      /* min */
+    100000, /* max */
+    0       /* block */
 );
 
 static MYSQL_SYSVAR_ULONG(unreachable_majority_timeout, /* name */

@@ -357,7 +357,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   // Transaction information.
   const ulong transaction_size_limit = get_transaction_size_limit();
   my_off_t transaction_size = 0;
-  const ulong request_time_threshold = get_request_time_threshold();
+  ulong request_time_threshold = get_request_time_threshold() * 1000;
   ulong time_diff = 0;
 
   const bool is_gtid_specified = param->gtid_info.type == GTID_GROUP;
@@ -594,6 +594,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   applier_module->get_flow_control_module()->do_wait();
 
   if (request_time_threshold > 0) {
+    if (request_time_threshold < 10000) {
+      request_time_threshold = 10000;
+    }
     time_diff = getusec();
   }
 
@@ -636,7 +639,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   if (request_time_threshold > 0) {
     time_diff = getusec() - time_diff;
     if (time_diff >= request_time_threshold) {
-      log_message(MY_INFORMATION_LEVEL, "MGR request time:%lu", time_diff);
+      log_message(MY_INFORMATION_LEVEL,
+                  "MGR request time:%lu, server id:%lu, thread_id:%u",
+                  time_diff, get_server_id(), param->thread_id);
     }
   }
 
